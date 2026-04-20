@@ -390,27 +390,32 @@
     }
 
     // [로직 1] 도수 표기 변환기 (깔끔한 버전)
-        function getPowerText(sph, cyl, signType) {
-            let s = parseFloat(sph);
-            let c = parseFloat(cyl);
+    function getPowerText(sph, cyl, signType) {
+        let s = parseFloat(sph);
+        let c = parseFloat(cyl);
 
-            // 괄호 안의 변환 도수(transS, transC) 계산 로직을 삭제하여 더 가볍게 만들었습니다.
-            if (signType === '+') { // 신성 원시++
-                return `<span class="text-red-500 font-black">S +${Math.abs(s).toFixed(2)} C +${Math.abs(c).toFixed(2)}</span>`;
-            } else if (signType === 'mixed') { // 하이비전 혼복+-
-                return `<span class="text-red-500 font-black">S +${Math.abs(s).toFixed(2)} C -${Math.abs(c).toFixed(2)}</span>`;
-            } else { // 근시 --
-                return `<span class="text-blue-600 font-black">S ${s.toFixed(2)} C ${c.toFixed(2)}</span>`;
-            }
+        // 괄호 안의 변환 도수(transS, transC) 계산 로직을 삭제하여 더 가볍게 만들었습니다.
+        if (signType === '+') { // 신성 원시++
+            return `<span class="text-red-500 font-black">S +${Math.abs(s).toFixed(2)} C +${Math.abs(c).toFixed(2)}</span>`;
+        } else if (signType === 'mixed') { // 하이비전 혼복+-
+            return `<span class="text-red-500 font-black">S +${Math.abs(s).toFixed(2)} C -${Math.abs(c).toFixed(2)}</span>`;
+        } else { // 근시 --
+            return `<span class="text-blue-600 font-black">S ${s.toFixed(2)} C ${c.toFixed(2)}</span>`;
         }
+    }
 
     // [로직 2] 메인 스캔 처리
     function processScan(code) {
-        // 1. 바코드 규칙 매칭 (접두사 + 전체 자릿수까지 확인)
-        const rule = rules.find(r => code.startsWith(r.prefix) && code.length === r.length);
+        if(!code) return;
+
+        // 등록된 모든 규칙을 하나씩 검사합니다.
+        const rule = rules.find(r => {
+            // 내 바코드를 규칙에 저장된 prefix 길이만큼 잘랐을 때 일치하는지 확인
+            return code.startsWith(r.prefix) && code.length === r.length;
+        });
 
         if (!rule) {
-            if (confirm("등록되지 않은 바코드(또는 자릿수 불일치)입니다. 규칙 설정으로 이동할까요?")) {
+            if (confirm("등록되지 않은 품목입니다. 규칙 설정으로 이동할까요?")) {
                 switchTab('manage');
                 document.getElementById('testBarcode').value = code;
                 runLivePreview();
@@ -736,11 +741,15 @@
     // [수정 3] 바코드 규칙을 서버(클라우드)에 저장하기
     function saveRule() {
         const code = document.getElementById('testBarcode').value;
-        if(!code) return alert("샘플 바코드를 먼저 찍어주세요.");
+        if(!code) return alert("바코드를 먼저 찍어주세요.");
+
+        // [수정] 품목 범위를 먼저 가져온 뒤 객체를 만듭니다.
+        const pS = parseInt(document.getElementById('pS').value) || 0;
+        const pE = parseInt(document.getElementById('pE').value) || 3;
 
         const newRule = {
             id: editingRuleId || Date.now(),
-            prefix: code.substring(0, 5),
+            prefix: code.substring(pS, pE), // 이제 "11102"가 아니라 "111"만 저장됩니다!
             length: code.length,
             company: document.getElementById('selCompany').value,
             index: document.getElementById('selIndex').value,
@@ -755,13 +764,13 @@
         if(editingRuleId) {
             rules = rules.map(r => r.id === editingRuleId ? newRule : r);
             editingRuleId = null;
+            document.getElementById('saveRuleBtn').innerText = "이 설정을 새 규칙으로 저장";
         } else {
             rules.push(newRule);
         }
 
-        // 서버에 저장 (가격표와 같은 방식)
-        db.ref('lens_mgmt/rules').set(rules).then(() => {
-            alert("규칙이 클라우드 서버에 저장되었습니다!");
+        db.ref('lens_mgmt/rules').set(rules).then(function() {
+            alert("서버에 규칙이 저장되었습니다. 이제 해당 품목의 모든 도수가 인식됩니다!");
             document.getElementById('testBarcode').value = "";
         });
     }
