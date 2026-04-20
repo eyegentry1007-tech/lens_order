@@ -342,6 +342,8 @@
     let rules = [];
     let companyList = ['신성옵틱', '하이비전', '은하옵틱', '자이스'];
     let currentOrders = [];
+    var currentStockSign = '-'; // 'currentStockSign이 정의되지 않음' 에러 해결
+    var stockData = JSON.parse(localStorage.getItem('tempStockV6')) || {}; // 'stockData가 정의되지 않음' 에러 해결
     let activeRecordId = null;
     let undoStack = [];
     let currentFilterCompany = "";
@@ -933,9 +935,16 @@
     }
 
     function initHistoryPage() {
-        document.getElementById('inspectDateSelect').value = '';
-        document.getElementById('sessionSelect').disabled = true;
-        document.getElementById('unifiedScanner').disabled = true;
+        // [에러 해결 2] 엘리먼트가 있는지 확인하고 없으면 건너뛰도록 안전하게 수정
+        var dateSelect = document.getElementById('inspectDateSelect');
+        if(dateSelect) dateSelect.value = '';
+
+        var unifiedScanner = document.getElementById('unifiedScanner');
+        if(unifiedScanner) unifiedScanner.disabled = true;
+        
+        // 만약 예전 코드에 sessionSelect가 남아있다면 에러 방지를 위해 삭제하거나 아래처럼 처리
+        var sessionSelect = document.getElementById('sessionSelect');
+        if(sessionSelect) sessionSelect.disabled = true;
     }
 
     // 메인 스캐너 엔터 이벤트
@@ -1004,13 +1013,16 @@
     // 1. 도수 방식 변경 (근시/원시)
     function changeStockSign(sign) {
         currentStockSign = sign;
+        // 버튼 ID가 HTML과 일치하는지 확인 (btn-stock-minus, btn-stock-plus, btn-stock-mixed)
         const btns = { '-': 'btn-stock-minus', '+': 'btn-stock-plus', 'mixed': 'btn-stock-mixed' };
         const colors = { '-': 'bg-blue-600', '+': 'bg-red-500', 'mixed': 'bg-purple-600' };
         
         Object.keys(btns).forEach(k => {
             const el = document.getElementById(btns[k]);
-            if(k === sign) el.className = `flex-1 py-3 rounded-xl font-black text-white shadow-lg ${colors[k]}`;
-            else el.className = "flex-1 py-3 rounded-xl font-black bg-slate-100 text-slate-400";
+            if(el) {
+                if(k === sign) el.className = `flex-1 py-2 rounded-lg font-black text-xs text-white shadow-sm ${colors[k]}`;
+                else el.className = "flex-1 py-2 rounded-lg font-black bg-slate-100 text-slate-400 text-xs";
+            }
         });
 
         renderStockGrid();
@@ -1019,6 +1031,8 @@
     // 2. 도수 분포 표(Grid) 그리기 - [전체 수정 버전]
     function renderStockGrid() {
         const area = document.getElementById('stockGridArea');
+        if (!area) return; // 영역이 없으면 중단
+        
         let sRange = [], cRange = [];
 
         // 1. 도수 범위 설정
@@ -1036,13 +1050,14 @@
         // 2. 상단 CYL 헤더 생성
         let html = `<table class="w-full border-collapse text-center font-mono">
             <thead><tr class="bg-slate-100 text-slate-500 text-lg">
-                <th class="border py-1 px-1 bg-white sticky left-0 z-10 w-16">S \\ C</th>
-                ${cRange.map(c => {
-                    let displayC = c;
-                    if (parseFloat(c) >= 0 && currentStockSign === '+') displayC = '+' + c;
-                    return `<th class="border py-1 px-0.5 min-w-[50px]">${displayC}</th>`;
-                }).join('')}
-            </tr></thead><tbody>`;
+                <th class="border py-1 px-1 bg-white sticky left-0 z-10 w-16">S \\ C</th>`;
+        
+        cRange.forEach(c => {
+            let displayC = c;
+            if (parseFloat(c) >= 0 && currentStockSign === '+') displayC = '+' + c;
+            html += `<th class="border py-1 px-0.5 min-w-[50px]">${displayC}</th>`;
+        });
+        html += `</tr></thead><tbody>`;
 
         const catKey = getStockCategoryKey();
 
@@ -1056,14 +1071,12 @@
             html += `<tr><td class="bg-slate-50 border py-1 px-1 font-black text-slate-700 sticky left-0 z-10 text-lg">${displayS}</td>`;
             
             cRange.forEach(c => {
-                // [수정 포인트] 여기서 displayC를 정의해줘야 에러가 안 납니다!
                 let displayC = c;
                 if (parseFloat(c) >= 0 && currentStockSign === '+') displayC = '+' + c;
 
                 const dataKey = `${catKey}_${s}_${c}`;
                 const count = parseInt(stockData[dataKey]) || 0;
                 
-                // 수량별 배경색 설정
                 let colorStyle = "bg-white text-slate-200"; 
                 if (count === 1) colorStyle = "bg-blue-500 text-white font-black"; 
                 else if (count === 2) colorStyle = "bg-green-500 text-white font-black"; 
@@ -1072,12 +1085,10 @@
 
                 const displayText = count > 0 ? count : "";
                 
-                // [수정 포인트] title에 displayS와 displayC를 정확히 넣어줌
                 html += `<td id="cell-${dataKey}" 
                             contenteditable="true"
                             onblur="manualEditStock('${dataKey}', this.innerText)"
-                            title="SPH: ${displayS} / CYL: ${displayC}" 
-                            class="border py-1 px-0.5 h-10 outline-none focus:ring-2 focus:ring-inset focus:ring-black text-xl duration-150 cursor-help ${colorStyle}">
+                            class="border py-1 px-0.5 h-10 outline-none focus:ring-2 focus:ring-inset focus:ring-black text-xl duration-150 ${colorStyle}">
                             ${displayText}
                         </td>`;
             });
@@ -1086,6 +1097,7 @@
         html += `</tbody></table>`;
         area.innerHTML = html;
 
+        // 합계 계산
         const total = Object.keys(stockData).filter(k => k.startsWith(catKey)).reduce((sum, k) => sum + (parseInt(stockData[k]) || 0), 0);
         document.getElementById('stockTotalCount').innerText = `현재 분류 합계: ${total}개`;
     }
