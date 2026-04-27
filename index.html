@@ -6,6 +6,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         .tab-content { display: none; }
         .tab-content.active { display: block; }
@@ -165,6 +166,9 @@
 
                     <div class="shrink-0 flex items-center gap-3">
                         <button onclick="saveStockTemp()" class="px-6 py-4 bg-slate-800 text-white rounded-2xl text-sm font-black hover:bg-black shadow-lg transition-all active:scale-95">💾 임시저장</button>
+                        <button onclick="downloadStockExcel()" class="px-6 py-4 bg-green-600 text-white rounded-2xl text-sm font-black hover:bg-green-700 shadow-lg transition-all active:scale-95 flex items-center gap-2">
+                            <span>📊</span> 엑셀 다운로드
+                        </button>
                         <button onclick="resetStock()" class="p-3 text-slate-300 hover:text-red-500 transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
@@ -204,13 +208,13 @@
                         <div>
                             <label class="text-xs font-bold text-slate-400 uppercase ml-1">업체명</label>
                             <select id="selCompany" class="w-full border-2 border-slate-100 p-4 rounded-xl appearance-none bg-white font-bold">
-                                <option>신성옵틱</option><option>하이비전</option><option>은하옵틱</option><option>자이스</option>
+                                <option value="" disabled selected>업체 선택</option>
                             </select>
                         </div>
                         <div>
                             <label class="text-xs font-bold text-slate-400 uppercase ml-1">굴절률</label>
                             <select id="selIndex" class="w-full border-2 border-slate-100 p-4 rounded-xl appearance-none bg-white font-bold">
-                                <option>1.56</option><option>1.60</option><option>1.67</option><option>1.74</option>
+                                <option value="" disabled selected>굴절률 선택</option>
                             </select>
                         </div>
                     </div>
@@ -219,31 +223,42 @@
                         <div>
                             <label class="text-xs font-bold text-slate-400 uppercase ml-1">설계</label>
                             <select id="selDesign" class="w-full border-2 border-slate-100 p-4 rounded-xl appearance-none bg-white font-bold">
-                                <option>구면</option><option selected>비구면</option>
+                                <option value="" disabled selected>설계 선택</option>
                             </select>
                         </div>
                         <div>
                             <label class="text-xs font-bold text-slate-400 uppercase ml-1">코팅 종류</label>
                             <select id="selType" class="w-full border-2 border-slate-100 p-4 rounded-xl appearance-none bg-white font-bold">
-                                <option>멀티</option><option selected>청광</option>
+                                <option value="" disabled selected>코팅 선택</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="bg-blue-50 p-2 rounded-2xl border-2 border-blue-100">
-                        <label class="block text-xs font-black mb-4 text-blue-800 uppercase tracking-widest text-center">도수 처리 방식 선택</label>
-                        <div class="flex gap-4">
-                            <label class="flex-1 bg-white p-4 rounded-xl border-2 border-blue-200 cursor-pointer text-center hover:border-blue-500 transition-all">
+                    <div class="bg-slate-50 p-4 rounded-2xl border-2 border-slate-200">
+                        <label class="block text-xs font-black mb-4 text-slate-500 uppercase tracking-widest text-center">도수 처리 방식 선택 (클릭 시 색상 반전)</label>
+                        <div class="flex gap-3">
+                            <label class="flex-1 cursor-pointer">
                                 <input type="radio" name="lens_sign" value="-" checked onchange="runLivePreview()" class="hidden peer">
-                                <span class="text-sm font-bold text-slate-400 peer-checked:text-blue-600 block">🔵 근시(-)</span>
+                                <div class="py-4 rounded-2xl border-4 border-slate-200 bg-white text-slate-400 font-black text-center transition-all 
+                                            peer-checked:bg-blue-600 peer-checked:border-blue-700 peer-checked:text-white peer-checked:shadow-lg peer-checked:scale-[1.02]">
+                                    <span class="block text-lg">🔵 근시(-)</span>
+                                </div>
                             </label>
-                            <label class="flex-1 bg-white p-4 rounded-xl border-2 border-red-100 cursor-pointer text-center hover:border-red-500 transition-all">
+
+                            <label class="flex-1 cursor-pointer">
                                 <input type="radio" name="lens_sign" value="+" onchange="runLivePreview()" class="hidden peer">
-                                <span class="text-sm font-bold text-slate-400 peer-checked:text-red-600 block">🔴 원시(++)</span>
+                                <div class="py-4 rounded-2xl border-4 border-slate-200 bg-white text-slate-400 font-black text-center transition-all 
+                                            peer-checked:bg-red-600 peer-checked:border-red-700 peer-checked:text-white peer-checked:shadow-lg peer-checked:scale-[1.02]">
+                                    <span class="block text-lg">🔴 원시(++)</span>
+                                </div>
                             </label>
-                            <label class="flex-1 bg-white p-4 rounded-xl border-2 border-purple-100 cursor-pointer text-center hover:border-purple-500 transition-all">
+
+                            <label class="flex-1 cursor-pointer">
                                 <input type="radio" name="lens_sign" value="mixed" onchange="runLivePreview()" class="hidden peer">
-                                <span class="text-sm font-bold text-slate-400 peer-checked:text-purple-600 block">🟣 혼복(+-)</span>
+                                <div class="py-4 rounded-2xl border-4 border-slate-200 bg-white text-slate-400 font-black text-center transition-all 
+                                            peer-checked:bg-purple-600 peer-checked:border-purple-700 peer-checked:text-white peer-checked:shadow-lg peer-checked:scale-[1.02]">
+                                    <span class="block text-lg">🟣 혼복(+-)</span>
+                                </div>
                             </label>
                         </div>
                     </div>
@@ -299,25 +314,59 @@
                     </button>
                 </div>
             </div>
-
             <div class="lg:col-span-7 bg-white p-8 rounded-3xl shadow-lg border border-slate-100">
-                <h3 class="text-2xl font-black mb-8 flex items-center"><span class="mr-2">📋</span> 등록된 업체별 규칙</h3>
-                <div id="ruleListDisplay" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[800px] overflow-y-auto pr-4 custom-scrollbar"></div>
-            </div>
-                        <div class="lg:col-span-12 bg-slate-100 p-6 rounded-3xl mb-8 border-2 border-slate-200">
-                <h3 class="text-xl font-black mb-4 flex items-center text-slate-700">
-                    <span class="mr-2">🏢</span> 거래처(업체명) 관리
+                <h3 class="text-2xl font-black mb-8 flex items-center text-slate-800">
+                    <span class="mr-2">📋</span> 등록된 업체별 규칙
                 </h3>
-                <div class="flex flex-wrap gap-3 items-center">
-                    <div class="flex gap-2 bg-white p-2 rounded-xl shadow-sm border">
-                        <input type="text" id="newCompanyName" placeholder="새 업체명 입력" class="p-2 outline-none font-bold text-sm w-40">
-                        <button onclick="addCompany()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-black text-sm hover:bg-blue-700">추가</button>
+                <div id="ruleListDisplay" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[800px] overflow-y-auto pr-4 custom-scrollbar">
                     </div>
-                    
-                    <div id="companyManageList" class="flex flex-wrap gap-2">
+            </div>
+            <div class="lg:col-span-12 bg-slate-100 p-8 rounded-[30px] mb-8 border-2 border-slate-200">
+                <h3 class="text-xl font-black mb-8 flex items-center text-slate-800">
+                    <span class="mr-2">📂</span> 품목 데이터 통합 관리
+                </h3>
+
+                <div class="mb-8">
+                    <div class="flex items-center mb-3">
+                        <span class="w-1 h-4 bg-blue-600 rounded-full mr-2"></span>
+                        <h4 class="font-bold text-slate-700">거래처(업체명) 관리</h4>
+                    </div>
+                    <div class="flex flex-wrap gap-3 items-center ml-3">
+                        <div class="flex gap-1 bg-white p-1.5 rounded-xl border shadow-sm">
+                            <input type="text" id="newCompanyName" placeholder="새 업체명" class="p-2 outline-none font-bold text-sm w-36">
+                            <button onclick="addItem('Company')" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-black text-sm hover:bg-blue-700">추가</button>
                         </div>
+                        <div id="companyManageList" class="flex flex-wrap gap-2"></div>
+                    </div>
                 </div>
-                <p class="text-[10px] text-slate-400 mt-3">* 업체명을 수정하면 기존에 등록된 바코드 규칙의 업체명도 한꺼번에 바뀝니다.</p>
+
+                <div class="mb-8">
+                    <div class="flex items-center mb-3">
+                        <span class="w-1 h-4 bg-indigo-600 rounded-full mr-2"></span>
+                        <h4 class="font-bold text-slate-700">설계 관리</h4>
+                    </div>
+                    <div class="flex flex-wrap gap-3 items-center ml-3">
+                        <div class="flex gap-1 bg-white p-1.5 rounded-xl border shadow-sm">
+                            <input type="text" id="newDesignName" placeholder="새 설계명" class="p-2 outline-none font-bold text-sm w-36">
+                            <button onclick="addItem('Design')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-black text-sm hover:bg-indigo-700">추가</button>
+                        </div>
+                        <div id="designManageList" class="flex flex-wrap gap-2"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center mb-3">
+                        <span class="w-1 h-4 bg-emerald-600 rounded-full mr-2"></span>
+                        <h4 class="font-bold text-slate-700">코팅 관리</h4>
+                    </div>
+                    <div class="flex flex-wrap gap-3 items-center ml-3">
+                        <div class="flex gap-1 bg-white p-1.5 rounded-xl border shadow-sm">
+                            <input type="text" id="newCoatingName" placeholder="새 코팅명" class="p-2 outline-none font-bold text-sm w-36">
+                            <button onclick="addItem('Coating')" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-black text-sm hover:bg-emerald-700">추가</button>
+                        </div>
+                        <div id="coatingManageList" class="flex flex-wrap gap-2"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -338,19 +387,23 @@
     firebase.initializeApp(firebaseConfig);
     var db = firebase.database();
 
-
     // 전역 변수
     let rules = [];
     let companyList = ['신성옵틱', '하이비전', '은하옵틱', '자이스'];
+    let designList = ['구면', '비구면'];
+    const indexList = ['1.56', '1.60', '1.67', '1.74'];
+    let coatingList = ['멀티', '청광'];
     let currentOrders = [];
     var currentStockSign = '-'; // 'currentStockSign이 정의되지 않음' 에러 해결
-    var stockData = JSON.parse(localStorage.getItem('tempStockV6')) || {}; // 'stockData가 정의되지 않음' 에러 해결
+    var savedStock = localStorage.getItem('tempStockV6');
+    var stockData = (savedStock && savedStock !== "undefined") ? JSON.parse(savedStock) : {};
+    var stockUndoStack = [];
     let activeRecordId = null;
     let undoStack = [];
     let currentFilterCompany = "";
     let editingRuleId = null;
     let scanCounter = 0;
-    let stockUndoStack = [];
+    
 
     // [3번 상세] 실시간 데이터 동기화
     // 서버의 'rules' 방에 변화가 생기면 내 컴퓨터의 rules 변수도 즉시 바뀝니다.
@@ -363,29 +416,59 @@
     db.ref('lens_mgmt/companies').on('value', function(snap) {
         if(snap.exists()) {
             companyList = snap.val();
-            renderCompanyLists(); // 업체 목록 드롭다운들을 갱신합니다.
+            renderAllDropdowns(); // ✅ 통합된 이름으로 변경
+        }
+    });
+
+    // 기존 업체명 동기화 코드 바로 아래에 붙여넣으세요
+    db.ref('lens_mgmt/designs').on('value', function(snap) {
+        if(snap.exists()) {
+            designList = snap.val();
+            renderAllDropdowns(); // 데이터가 오면 모든 드롭다운 갱신
+        }
+    });
+
+    db.ref('lens_mgmt/coatings').on('value', function(snap) {
+        if(snap.exists()) {
+            coatingList = snap.val();
+            renderAllDropdowns(); // 데이터가 오면 모든 드롭다운 갱신
         }
     });
 
 
     // 탭 전환
     function switchTab(tabId) {
+        // 1. 모든 탭 내용(화면)을 숨깁니다.
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        // 2. 클릭한 탭의 내용만 보여줍니다.
         document.getElementById('tab-' + tabId).classList.add('active');
+        
+        // 3. 모든 메뉴 버튼의 강조색을 뺍니다.
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active-tab'));
+        // 4. 클릭한 메뉴 버튼에만 강조색(파란색 밑줄 등)을 넣습니다.
         document.getElementById('tabBtn-' + tabId).classList.add('active-tab');
         
-        if(tabId === 'manage') renderRules();
-        if(tabId === 'stock') {
-            renderStockGrid();
-            // 0.05초 뒤에 재고 스캐너에 강제 포커스 (탭 전환 애니메이션 고려)
-            setTimeout(() => document.getElementById('stockScanner').focus(), 50);
+        // [중요] 탭별 추가 실행 로직
+        if(tabId === 'manage') {
+            resetRuleForm();      // <--- 설정 탭에 진입할 때마다 폼을 싹 비움
+            renderAllDropdowns(); 
+            renderRules();
         }
+        
+        if(tabId === 'stock') {
+            renderAllDropdowns(); // 여기서 자동으로 업체가 선택되고 renderStockGrid가 호출됨
+            setTimeout(() => {
+                const scanner = document.getElementById('stockScanner');
+                if(scanner) scanner.focus();
+            }, 100);
+        }
+        
         if(tabId === 'history') {
+            renderAllDropdowns(); // ✅ 끝에 ()를 반드시 붙여야 함수가 실행됩니다!
             renderHistory();
             initHistoryPage();
         }
-        // 주문 탭 포커스도 유지
+        
         if(tabId === 'order') {
             setTimeout(() => document.getElementById('mainScanner').focus(), 50);
         }
@@ -497,11 +580,14 @@
 
     // [로직 4] 달력 기반 기록 시스템
     function renderHistory() {
-        const history = JSON.parse(localStorage.getItem('eyeHistoryV4')) || [];
         const cal = document.getElementById('visualCalendar');
-        const headers = ['일', '월', '화', '수', '목', '금', '토'];
+        if(!cal) return;
+
+        // 달력 표시용 로컬 기록 (confirmOrder 시 저장됨)
+        const localHistory = JSON.parse(localStorage.getItem('eyeHistoryV4')) || [];
         
-        let calHtml = headers.map(h => `<div class="text-slate-800 font-black text-lg mb-4">${h}</div>`).join('');
+        const headers = ['일', '월', '화', '수', '목', '금', '토'];
+        let calHtml = headers.map(h => `<div class="text-slate-400 font-bold text-xs mb-4">${h}</div>`).join('');
 
         const now = new Date();
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
@@ -510,14 +596,16 @@
         for(let i=0; i<firstDay; i++) calHtml += `<div></div>`;
 
         for(let d=1; d<=lastDate; d++) {
+            // 파이어베이스와 동일한 "2026-04-27" 형식 생성
             const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            const matchDate = new Date(dateStr).toLocaleDateString();
-            const hasOrder = history.some(h => h.date === matchDate);
+            
+            // 해당 날짜에 기록이 있는지 확인 (파란 점 표시용)
+            const hasOrder = localHistory.some(h => h.date === dateStr);
             
             calHtml += `
-                <div onclick="document.getElementById('inspectDateSelect').value='${dateStr}';loadHistoryByDate('${dateStr}')"
-                    class="group relative py-2 px-1 rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center text-xl font-black
-                    ${hasOrder ? 'bg-blue-600 text-white shadow-xl shadow-blue-200 hover:scale-110 active:scale-95' : 'bg-slate-50 text-slate-600 hover:bg-slate-200'}">
+                <div onclick="document.getElementById('inspectDateSelect').value='${dateStr}'; loadHistoryByDate('${dateStr}')"
+                    class="group relative py-3 rounded-2xl cursor-pointer transition-all flex items-center justify-center text-lg font-black
+                    ${hasOrder ? 'bg-blue-600 text-white shadow-xl scale-105' : 'bg-slate-50 text-slate-600 hover:bg-slate-200'}">
                     ${d}
                     ${hasOrder ? '<span class="absolute top-1 right-2 w-2 h-2 bg-white rounded-full animate-pulse"></span>' : ''}
                 </div>`;
@@ -526,26 +614,68 @@
     }
 
     function loadHistoryByDate(dateStr) {
-        // 선택한 날짜를 서버 주소 형식(2026-04-20)으로 변환
-        var formattedId = new Date(dateStr).toLocaleDateString('ko-KR').replace(/\. /g, '-').replace(/\./g, '');
+        if(!dateStr) return;
+
+        // 1. 표준 형식 (예: 2026-04-25)
+        var paddedId = standardizeDate(dateStr); 
         
-        // 서버에 해당 날짜 데이터를 '한 번만' 요청
-        db.ref('lens_mgmt/history/' + formattedId).once('value').then(function(snap) {
+        // 2. 비표준 형식 (예: 2026-4-25) 대응용
+        var d = new Date(dateStr);
+        var nonPaddedId = d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+
+        const resultArea = document.getElementById('inspectionResultArea');
+        const summaryArea = document.getElementById('historySummaryArea');
+
+        function processData(snap, finalId) {
             if(snap.exists()){
                 var record = snap.val();
-                activeRecordId = formattedId; // 현재 검수 중인 날짜로 설정
                 
-                // 필터 및 스캐너 활성화
+                // [에러 핵심 해결] items가 없으면 빈 배열로 강제 설정
+                var items = record.items || [];
+                
+                // 데이터는 있는데 품목이 하나도 없는 경우 처리
+                if (items.length === 0) {
+                    showNoData(resultArea, summaryArea, finalId);
+                    return true; 
+                }
+
+                activeRecordId = finalId; 
+
                 document.getElementById('companyFilter').disabled = false;
                 document.getElementById('unifiedScanner').disabled = false;
                 
-                renderInspectionUI(record); // 화면에 검수 리스트 그리기
-            } else {
-                // 데이터가 없을 때의 처리
-                activeRecordId = null;
-                document.getElementById('inspectionResultArea').innerHTML = 
-                    `<div class="py-32 text-center text-slate-300 font-black text-xl">해당 날짜에는 저장된 기록이 없습니다.</div>`;
+                // items가 확실히 있을 때만 map 실행
+                const companiesInRecord = [...new Set(items.map(item => item.company))];
+                document.getElementById('companyFilter').innerHTML = 
+                    `<option value="">전체 업체 (${companiesInRecord.length})</option>` + 
+                    companiesInRecord.map(c => `<option value="${c}">${c}</option>`).join('');
+
+                renderInspectionUI(record); 
+                setTimeout(() => document.getElementById('unifiedScanner').focus(), 100); 
+                return true; 
             }
+            return false; 
+        }
+
+        function showNoData(res, sum, id) {
+            activeRecordId = null;
+            document.getElementById('companyFilter').disabled = true;
+            document.getElementById('unifiedScanner').disabled = true;
+            res.innerHTML = `<div class="py-32 text-center text-slate-300 font-black text-xl">해당 날짜(${id})에는 저장된 기록이 없습니다.</div>`;
+            sum.innerHTML = `<p class="text-slate-300 italic text-center py-20 text-xs">데이터 없음</p>`;
+        }
+
+        // 이중 체크 로직 실행
+        db.ref('lens_mgmt/history/' + paddedId).once('value').then(function(snap) {
+            if (!processData(snap, paddedId)) {
+                db.ref('lens_mgmt/history/' + nonPaddedId).once('value').then(function(snap2) {
+                    if (!processData(snap2, nonPaddedId)) {
+                        showNoData(resultArea, summaryArea, paddedId);
+                    }
+                });
+            }
+        }).catch(err => {
+            console.error("데이터 로드 에러:", err);
         });
     }
 
@@ -574,21 +704,33 @@
     function renderInspectionUI(record) {
         const summaryArea = document.getElementById('historySummaryArea');
         const copyBtnArea = document.getElementById('historyCopyBtnArea');
-        summaryArea.innerHTML = generateGroupedSummary(record.items);
+        const resultArea = document.getElementById('inspectionResultArea');
+        
+        if (!record || !record.items || record.items.length === 0) {
+            summaryArea.innerHTML = `<p class="text-slate-300 italic text-center py-20 text-xs">데이터 없음</p>`;
+            resultArea.innerHTML = `<div class="py-32 text-center text-slate-300 font-black text-xl">남은 기록이 없습니다.</div>`;
+            return;
+        }
+
+        // 1. 상단 요약 및 복사 버튼 복구
+        summaryArea.innerHTML = generateGroupedSummary(record.items || []);
         copyBtnArea.innerHTML = `<button onclick="copyHistoryToClipboard(${record.id})" class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-lg font-black transition-all shadow-md">복사</button>`;
 
-        const resultArea = document.getElementById('inspectionResultArea');
-        const filteredItems = currentFilterCompany ? record.items.filter(i => i.company === currentFilterCompany) : record.items;
+        // 2. 업체 필터링 적용
+        const filteredItems = currentFilterCompany 
+            ? (record.items || []).filter(i => i.company === currentFilterCompany) 
+            : (record.items || []);
 
-        // 업체별로 묶어서 표시
+        // 3. 업체별로 묶기
         const itemsByCo = filteredItems.reduce((acc, item) => {
             if(!acc[item.company]) acc[item.company] = [];
             acc[item.company].push(item);
             return acc;
         }, {});
 
+        // 4. 메인 HTML 구조 생성 (원본 레이아웃 복구)
         let html = `<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div class="lg:col-span-8 space-y-6">`;
+            <div class="lg:col-span-8 space-y-6">`; // 왼쪽 8칸: 주문 내역
 
         for (const co in itemsByCo) {
             html += `
@@ -631,13 +773,13 @@
                             record.unregisteredItems.map((code, idx) => `
                             <div class="bg-white p-4 rounded-2xl border border-red-200 flex justify-between items-center shadow-sm">
                                 <span class="font-mono text-sm text-red-600 font-bold">${code}</span>
-                                <button onclick="confirmUnregisteredItem(${record.id}, ${idx})" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-black transition-all">확인</button>
+                                <button onclick="confirmUnregisteredItem('${record.date}', ${idx})" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-black transition-all">확인</button>
                             </div>`).join('')
                             : `<p class="text-red-300 italic text-center py-10 text-sm font-bold">오배송 내역이 없습니다.</p>`
                         }
                     </div>
                     <div class="mt-6 pt-4 border-t border-red-100 text-center">
-                        <button onclick="deleteHistory(${record.id})" class="text-red-300 hover:text-red-500 text-xs font-bold underline">해당 날짜 전체 기록 삭제</button>
+                        <button onclick="deleteHistory('${record.date}')" class="text-red-300 hover:text-red-500 text-xs font-bold underline">해당 날짜 전체 기록 삭제</button>
                     </div>
                 </div>
             </div>
@@ -659,35 +801,63 @@
     }
 
     // 기록 데이터 개별 렌즈 삭제
-    function deleteHistoryItem(date, code) {
-        if(!confirm("이 렌즈 항목을 주문 기록에서 삭제할까요?")) return;
-        let history = JSON.parse(localStorage.getItem('eyeHistoryV4')) || [];
-        const record = history.find(h => h.date === date);
-        if(record) {
-            record.items = record.items.filter(i => i.code !== code);
-            localStorage.setItem('eyeHistoryV4', JSON.stringify(history));
-            renderInspectionUI(record);
-        }
+    function deleteHistoryItem(dateId, code) {
+        if(!confirm("이 렌즈를 기록에서 삭제할까요?")) return;
+        
+        const recordRef = db.ref('lens_mgmt/history/' + dateId);
+        recordRef.once('value').then(snap => {
+            if(snap.exists()) {
+                let record = snap.val();
+                record.items = record.items.filter(i => i.code !== code);
+                recordRef.set(record).then(() => renderInspectionUI(record));
+            }
+        });
     }
 
     // 기록 데이터 특정 업체 전체 삭제
     function deleteHistoryCompany(date, companyName) {
         if(!confirm(`'${companyName}' 업체의 모든 내역을 삭제할까요?`)) return;
-        let history = JSON.parse(localStorage.getItem('eyeHistoryV4')) || [];
-        const record = history.find(h => h.date === date);
-        if(record) {
-            record.items = record.items.filter(i => i.company !== companyName);
-            localStorage.setItem('eyeHistoryV4', JSON.stringify(history));
-            // 업체가 다 삭제되어 필터 대상이 바뀌었을 수 있으므로 다시 로드
-            loadHistoryByDate(document.getElementById('inspectDateSelect').value);
-        }
+
+        // 파이어베이스 경로 확인용 날짜 표준화
+        const formattedId = standardizeDate(date);
+        const recordRef = db.ref('lens_mgmt/history/' + formattedId);
+
+        recordRef.once('value').then(snap => {
+            if (snap.exists()) {
+                let record = snap.val();
+                
+                // 데이터가 있는지 확인 후 필터링
+                if (record.items && Array.isArray(record.items)) {
+                    record.items = record.items.filter(i => i.company !== companyName);
+
+                    // 서버 업데이트
+                    recordRef.set(record).then(() => {
+                        // 삭제 후 화면 다시 불러오기
+                        loadHistoryByDate(formattedId);
+                        alert(`'${companyName}' 업체의 내역이 삭제되었습니다.`);
+                    });
+                }
+            }
+        }).catch(err => {
+            console.error("삭제 중 오류 발생:", err);
+        });
     }
 
-    // 1. 칸 동기화 함수
-    function syncIndex(sourceId, targetId) {
-        const sourceVal = document.getElementById(sourceId).value;
-        document.getElementById(targetId).value = sourceVal;
-        runLivePreview();
+    // 입력된 날짜를 무조건 YYYY-MM-DD 형식으로 변환
+    function standardizeDate(dateStr) {
+        if (!dateStr) return "";
+        
+        // Date 객체로 만들면 "2026-4-27"도 알아서 정확한 날짜로 인식합니다.
+        const d = new Date(dateStr);
+        
+        // 날짜가 유효하지 않으면 원본 반환 (에러 방지)
+        if (isNaN(d.getTime())) return dateStr; 
+
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0'); // 한 자리면 앞에 0 추가
+        const day = String(d.getDate()).padStart(2, '0');        // 한 자리면 앞에 0 추가
+
+        return `${year}-${month}-${day}`;
     }
 
     // 2. 실시간 미리보기 함수
@@ -779,74 +949,88 @@
 
     function renderRules() {
         const list = document.getElementById('ruleListDisplay');
-        if (!list) return; // 요소가 없으면 중단
+        if (!list) return;
 
         if (rules.length === 0) {
             list.innerHTML = `<p class="col-span-full text-slate-400 italic text-center py-10">등록된 규칙이 없습니다.</p>`;
             return;
         }
 
-        // [1] 데이터 그룹화 (업체별)
-        const groupedRules = rules.reduce((acc, r) => {
-            if (!acc[r.company]) acc[r.company] = [];
-            acc[r.company].push(r);
+        // 1. 데이터 그룹화 (업체명 > 굴절률)
+        const grouped = rules.reduce((acc, r) => {
+            if (!acc[r.company]) acc[r.company] = {};
+            if (!acc[r.company][r.index]) acc[r.company][r.index] = [];
+            acc[r.company][r.index].push(r);
             return acc;
         }, {});
 
-        // 업체명 순으로 정렬
-        const sortedCompanies = Object.keys(groupedRules).sort();
-
-        // [2] 화면 그리기
+        const sortedCompanies = Object.keys(grouped).sort();
         let html = '';
-        const signLabels = { '+': '원시(++)', 'mixed': '혼복(+-)', '-': '근시(--)' };
-        const signColors = { '+': 'text-red-500', 'mixed': 'text-purple-500', '-': 'text-blue-500' };
 
+        // 2. 업체별 루프 (접이식 구조)
         sortedCompanies.forEach(company => {
+            const totalCount = Object.values(grouped[company]).flat().length;
+            
             html += `
-                <div class="col-span-full mt-6 mb-2">
-                    <h4 class="text-xl font-black text-slate-700 flex items-center">
-                        <span class="w-1 h-6 bg-blue-600 rounded-full mr-2"></span>
-                        ${company} <span class="ml-2 text-sm text-slate-400 font-normal">${groupedRules[company].length}개 규칙</span>
-                    </h4>
-                </div>
+                <details class="col-span-full group mb-4 bg-white rounded-[25px] border-2 border-slate-200 shadow-sm overflow-hidden">
+                    <summary class="list-none p-6 flex justify-between items-center cursor-pointer bg-slate-50 hover:bg-blue-50 transition-all active:scale-[0.99]">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl font-black text-slate-900">🏢 ${company}</span>
+                            <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-black">${totalCount}</span>
+                        </div>
+                        <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300 text-2xl">▼</span>
+                    </summary>
+                    
+                    <div class="p-5 space-y-6 bg-white border-t border-slate-100">
             `;
 
-            groupedRules[company].forEach(r => {
-                const modeLabel = signLabels[r.signType] || '기타';
-                const modeColor = signColors[r.signType] || 'text-slate-400';
-                
-                // [방어 코드] 데이터가 없는 구버전 규칙 대응
-                const pRange = r.itemRange || [0, 0];
-                const sRange = r.sphRange || [0, 0];
-                const cRange = r.cylRange || [0, 0];
-                const bLen = r.length || "미정";
+            // 굴절률별 정렬
+            const sortedIndexes = Object.keys(grouped[company]).sort((a, b) => parseFloat(a) - parseFloat(b));
 
+            sortedIndexes.forEach(index => {
                 html += `
-                    <div class="bg-white p-5 rounded-2xl flex justify-between items-center border-2 border-slate-50 shadow-sm hover:border-blue-300 transition-all group">
-                        <div class="flex-1">
-                            <div class="text-lg font-black text-slate-800 mb-1 leading-tight">
-                                ${r.index} ${r.design} ${r.type} 
-                                <span class="${modeColor} ml-1">${modeLabel}</span>
+                    <div class="ml-2">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-2 h-6 bg-slate-800 rounded-full"></div>
+                            <span class="text-lg font-black text-slate-800">굴절률 ${index}</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3 ml-4">
+                `;
+
+                grouped[company][index].forEach((r, idx) => {
+                    const signColors = { '+': 'text-red-600', 'mixed': 'text-purple-700', '-': 'text-blue-700' };
+                    const signLabels = { '+': '원시(++)', 'mixed': '혼복(+-)', '-': '근시(--)' };
+
+                    html += `
+                        <div class="flex justify-between items-center p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-colors">
+                            <div class="flex items-center gap-5">
+                                <span class="text-xl font-black text-slate-300 italic">#${idx + 1}</span>
+                                <div>
+                                    <div class="text-xl font-black text-slate-900 mb-1">
+                                        ${r.design} / ${r.type} 
+                                        <span class="${signColors[r.signType]} ml-2 underline decoration-2 underline-offset-4">${signLabels[r.signType]}</span>
+                                    </div>
+                                    <div class="text-sm font-bold text-slate-600 font-mono tracking-tight bg-white px-3 py-1 rounded-lg border border-slate-200 mt-2">
+                                        식별: <span class="text-blue-700 font-black">${r.prefix}</span> 
+                                        <span class="mx-2 text-slate-300">|</span> 
+                                        길이: <span class="text-slate-900">${r.length}자</span>
+                                        <span class="mx-2 text-slate-300">|</span> 
+                                        범위: S(${r.sphRange[0]}~${r.sphRange[1]}) C(${r.cylRange[0]}~${r.cylRange[1]})
+                                    </div>
+                                </div>
                             </div>
-                            <div class="text-[11px] text-slate-400 font-bold font-mono">
-                                식별코드: <span class="text-blue-600">${r.prefix}</span> (길이:${bLen}) | 
-                                범위: P(${pRange[0]}~${pRange[1]}) S(${sRange[0]}~${sRange[1]}) C(${cRange[0]}~${cRange[1]})
+                            <div class="flex gap-2">
+                                <button onclick="editRule(${r.id})" class="px-4 py-2 bg-white text-blue-600 border-2 border-blue-100 rounded-xl font-black hover:bg-blue-600 hover:text-white transition-all shadow-sm">수정</button>
+                                <button onclick="deleteRule(${r.id})" class="px-4 py-2 bg-white text-red-400 border-2 border-red-50 rounded-xl font-black hover:bg-red-500 hover:text-white transition-all shadow-sm">삭제</button>
                             </div>
                         </div>
-                        <div class="flex gap-2">
-                            <button onclick="editRule(${r.id})" class="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all" title="수정">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                            </button>
-                            <button onclick="deleteRule(${r.id})" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" title="삭제">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>`;
+                    `;
+                });
+
+                html += `</div></div>`; // 굴절률 그룹 닫기
             });
+
+            html += `</div></details>`; // 업체 그룹(details) 닫기
         });
 
         list.innerHTML = html;
@@ -869,38 +1053,52 @@
     function confirmOrder() {
         if (currentOrders.length === 0) return alert("저장할 내역이 없습니다.");
         
-        // 1. 오늘 날짜 주소 만들기 (예: 2026-04-20)
-        var todayStr = new Date().toLocaleDateString('ko-KR').replace(/\. /g, '-').replace(/\./g, '');
+        // 1. 오늘 날짜를 표준 형식("2026-04-27")으로 가져오기
+        var today = new Date();
+        var todayStr = standardizeDate(today);
+
+        // 파이어베이스 경로 설정
         var historyRef = db.ref('lens_mgmt/history/' + todayStr);
 
-        // 2. 서버에서 오늘 이미 저장된 데이터가 있는지 '한 번만' 확인합니다.
+        // 2. 서버에서 기존 데이터 가져오기 (병합을 위해)
         historyRef.once('value').then(function(snap) {
             var items = [];
+            var unregisteredItems = [];
+            
             if (snap.exists()) {
-                items = snap.val().items; // 이미 저장된 렌즈 목록이 있다면 가져옴
+                items = snap.val().items || [];
+                unregisteredItems = snap.val().unregisteredItems || [];
             }
 
-            // 3. [합치기 로직] 지금 스캔한 것들을 기존 목록에 더합니다.
+            // 3. 기존 리스트에 현재 스캔한 것들 합치기
             currentOrders.forEach(function(newObj) {
                 var exist = items.find(function(o) { return o.code === newObj.code; });
                 if (exist) {
-                    exist.qty += newObj.qty; // 같은 렌즈가 이미 있다면 수량만 플러스
+                    exist.qty += newObj.qty; 
                 } else {
-                    items.push(newObj); // 처음 찍는 렌즈라면 목록에 새로 추가
+                    items.push(newObj); 
                 }
             });
 
-            // 4. 합쳐진 최종 데이터를 서버에 덮어씌웁니다.
+            // 4. 최종 결과 서버에 저장
             historyRef.set({
                 id: Date.now(),
                 date: todayStr,
                 items: items,
-                unregisteredItems: snap.exists() ? (snap.val().unregisteredItems || []) : [] 
+                unregisteredItems: unregisteredItems
             }).then(function() {
-                // 5. 완료 후 내 화면 청소
+                // 달력에 파란 점 표시를 위해 로컬 스토리지 업데이트
+                let localHistory = JSON.parse(localStorage.getItem('eyeHistoryV4')) || [];
+                if(!localHistory.some(h => h.date === todayStr)) {
+                    localHistory.push({ date: todayStr, id: Date.now() });
+                    localStorage.setItem('eyeHistoryV4', JSON.stringify(localHistory));
+                }
+
+                // 5. 완료 후 화면 초기화
                 currentOrders = [];
                 scanCounter = 0;
                 renderOrderTable();
+                renderHistory(); // 달력 갱신 (점이 바로 보이게)
                 alert("서버(Cloud)에 오늘치 주문이 통합 저장되었습니다!");
             });
         });
@@ -912,25 +1110,26 @@
             event.target.value = '';
             if(!code) return;
 
-            let history = JSON.parse(localStorage.getItem('eyeHistoryV4')) || [];
-            let record = history.find(h => h.id === activeRecordId);
-
-            if (record) {
-                // [되돌리기 저장] 찍기 전 상태를 바구니에 저장 (최대 10개까지)
-                if (undoStack.length >= 10) undoStack.shift();
-                undoStack.push(JSON.parse(JSON.stringify(history)));
-
-                const item = record.items.find(i => i.code === code);
-                if (item) {
-                    item.inspectedQty = (item.inspectedQty || 0) + 1;
-                } else {
-                    if (!record.unregisteredItems) record.unregisteredItems = [];
-                    record.unregisteredItems.push(code);
+            const recordRef = db.ref('lens_mgmt/history/' + activeRecordId);
+            
+            recordRef.once('value').then(function(snap) {
+                if (snap.exists()) {
+                    let record = snap.val();
+                    const item = record.items.find(i => i.code === code);
+                    
+                    if (item) {
+                        item.inspectedQty = (item.inspectedQty || 0) + 1; // 검수 수량 증가
+                    } else {
+                        if (!record.unregisteredItems) record.unregisteredItems = [];
+                        if (!record.unregisteredItems.includes(code)) record.unregisteredItems.push(code); // 오배송 기록
+                    }
+                    
+                    // 서버 업데이트 후 화면 갱신
+                    recordRef.set(record).then(() => {
+                        renderInspectionUI(record); 
+                    });
                 }
-                
-                localStorage.setItem('eyeHistoryV4', JSON.stringify(history));
-                renderInspectionUI(record);
-            }
+            });
         }
     }
 
@@ -991,9 +1190,14 @@
     // 업체 필터 선택 시 실행
     function filterByCompany() {
         currentFilterCompany = document.getElementById('companyFilter').value;
-        const history = JSON.parse(localStorage.getItem('eyeHistoryV4')) || [];
-        const record = history.find(h => h.id == activeRecordId);
-        if(record) renderInspectionUI(record);
+        if (!activeRecordId) return;
+
+        // 서버에서 현재 데이터를 다시 읽어와서 필터링된 화면 그리기
+        db.ref('lens_mgmt/history/' + activeRecordId).once('value').then(function(snap) {
+            if (snap.exists()) {
+                renderInspectionUI(snap.val());
+            }
+        });
     }
 
     // 주황색 되돌리기 버튼 눌렀을 때 실행
@@ -1042,65 +1246,70 @@
     // 2. 도수 분포 표(Grid) 그리기 - [전체 수정 버전]
     function renderStockGrid() {
         const area = document.getElementById('stockGridArea');
-        if (!area) return; // 영역이 없으면 중단
+        if (!area) return; 
+
+        const co = document.getElementById('stockCompany').value;
         
+        // 업체가 선택되지 않았을 때만 안내 문구 표시
+        if (!co || co === "") {
+            area.innerHTML = `<div class="py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                <p class="text-slate-400 font-bold text-xl">상단에서 업체를 선택하시면 재고 현황판이 나타납니다.</p>
+            </div>`;
+            document.getElementById('stockTotalCount').innerText = `Total: 0개`;
+            return;
+        }
+
+        // stockData 안전하게 초기화
+        if (!stockData) stockData = {};
+
         let sRange = [], cRange = [];
 
         // 1. 도수 범위 설정
-        if (currentStockSign === '-') { // 근시
+        if (currentStockSign === '-') { 
             for (let s = 0; s >= -8.00; s -= 0.25) sRange.push(s.toFixed(2));
             for (let c = 0; c >= -3.00; c -= 0.25) cRange.push(c.toFixed(2));
-        } else if (currentStockSign === '+') { // 원시
+        } else if (currentStockSign === '+') { 
             for (let s = 0; s <= 4.00; s += 0.25) sRange.push(s.toFixed(2));
             for (let c = 0; c <= 2.00; c += 0.25) cRange.push(c.toFixed(2));
-        } else { // 혼복 (+/-)
+        } else { 
             for (let s = 0; s <= 4.00; s += 0.25) sRange.push(s.toFixed(2));
             for (let c = 0; c >= -2.00; c -= 0.25) cRange.push(c.toFixed(2));
         }
 
-        // 2. 상단 CYL 헤더 생성
-        let html = `<table class="w-full border-collapse text-center font-mono">
-            <thead><tr class="bg-slate-100 text-slate-500 text-lg">
-                <th class="border py-1 px-1 bg-white sticky left-0 z-10 w-16">S \\ C</th>`;
+        // 2. 상단 CYL 헤더
+        let html = `<table class="w-full border-collapse text-center font-mono text-xs shadow-sm rounded-lg overflow-hidden">
+            <thead><tr class="bg-slate-700 text-white">
+                <th class="border-slate-600 py-2 px-1 sticky left-0 z-20 bg-slate-800">S \\ C</th>`;
         
         cRange.forEach(c => {
-            let displayC = c;
-            if (parseFloat(c) >= 0 && currentStockSign === '+') displayC = '+' + c;
-            html += `<th class="border py-1 px-0.5 min-w-[50px]">${displayC}</th>`;
+            let displayC = (parseFloat(c) > 0) ? '+' + c : c;
+            html += `<th class="border-slate-600 py-2 px-0.5 min-w-[45px]">${displayC}</th>`;
         });
-        html += `</tr></thead><tbody>`;
+        html += `</tr></thead><tbody class="bg-white">`;
 
         const catKey = getStockCategoryKey();
 
-        // 3. 좌측 SPH 라벨 및 본문 생성
+        // 3. 좌측 SPH 및 데이터 셀
         sRange.forEach(s => {
-            let displayS = s;
-            if (parseFloat(s) >= 0 && (currentStockSign === '+' || currentStockSign === 'mixed')) {
-                displayS = '+' + s;
-            }
-
-            html += `<tr><td class="bg-slate-50 border py-1 px-1 font-black text-slate-700 sticky left-0 z-10 text-lg">${displayS}</td>`;
+            let displayS = (parseFloat(s) > 0) ? '+' + s : s;
+            html += `<tr><td class="bg-slate-100 border py-2 px-1 font-black text-slate-700 sticky left-0 z-10">${displayS}</td>`;
             
             cRange.forEach(c => {
-                let displayC = c;
-                if (parseFloat(c) >= 0 && currentStockSign === '+') displayC = '+' + c;
-
                 const dataKey = `${catKey}_${s}_${c}`;
                 const count = parseInt(stockData[dataKey]) || 0;
                 
-                let colorStyle = "bg-white text-slate-200"; 
+                let colorStyle = "bg-white text-slate-100"; 
                 if (count === 1) colorStyle = "bg-blue-500 text-white font-black"; 
                 else if (count === 2) colorStyle = "bg-green-500 text-white font-black"; 
                 else if (count === 3) colorStyle = "bg-orange-400 text-white font-black"; 
                 else if (count >= 4) colorStyle = "bg-red-600 text-white font-black"; 
 
-                const displayText = count > 0 ? count : "";
-                
                 html += `<td id="cell-${dataKey}" 
                             contenteditable="true"
                             onblur="manualEditStock('${dataKey}', this.innerText)"
-                            class="border py-1 px-0.5 h-10 outline-none focus:ring-2 focus:ring-inset focus:ring-black text-xl duration-150 ${colorStyle}">
-                            ${displayText}
+                            onfocus="this.innerText = (this.innerText == '' ? '' : this.innerText)"
+                            class="border py-2 px-0.5 h-10 outline-none focus:ring-2 focus:ring-blue-400 text-lg transition-all ${colorStyle}">
+                            ${count > 0 ? count : ""}
                         </td>`;
             });
             html += `</tr>`;
@@ -1108,9 +1317,8 @@
         html += `</tbody></table>`;
         area.innerHTML = html;
 
-        // 합계 계산
-        const total = Object.keys(stockData).filter(k => k.startsWith(catKey)).reduce((sum, k) => sum + (parseInt(stockData[k]) || 0), 0);
-        document.getElementById('stockTotalCount').innerText = `현재 분류 합계: ${total}개`;
+        // 합계 업데이트
+        updateTotalOnly(catKey);
     }
 
     function manualEditStock(dataKey, newVal) {
@@ -1127,10 +1335,10 @@
     }
 
     function getStockCategoryKey() {
-        const co = document.getElementById('stockCompany').value;
-        const idx = document.getElementById('stockIndex').value;
-        const ds = document.getElementById('stockDesign').value;
-        const ty = document.getElementById('stockType').value;
+        const co = document.getElementById('stockCompany').value || ""; // 없으면 빈칸
+        const idx = document.getElementById('stockIndex').value || "";
+        const ds = document.getElementById('stockDesign').value || "";
+        const ty = document.getElementById('stockType').value || "";
         return `${co}_${idx}_${ds}_${ty}`;
     }
 
@@ -1175,6 +1383,7 @@
                 
                 // 부호 상태 강제 업데이트 및 버튼 색상 변경
                 currentStockSign = rule.signType;
+                changeStockSign(rule.signType);
                 const btns = { '-': 'btn-stock-minus', '+': 'btn-stock-plus', 'mixed': 'btn-stock-mixed' };
                 const colors = { '-': 'bg-blue-600', '+': 'bg-red-500', 'mixed': 'bg-purple-600' };
                 Object.keys(btns).forEach(k => {
@@ -1248,30 +1457,75 @@
     }
 
     // 1. 업체 목록 및 드롭다운 렌더링
-    function renderCompanyLists() {
-        var listArea = document.getElementById('companyManageList');
-        listArea.innerHTML = companyList.map(name => `
-            <div class="flex items-center bg-white border border-slate-300 rounded-lg overflow-hidden shadow-sm">
-                <span class="px-3 py-1.5 font-bold text-sm text-slate-700">${name}</span>
-                <button onclick="editCompany('${name}')" class="bg-slate-100 px-2 py-1.5 text-xs text-blue-600 hover:bg-blue-50 border-l border-slate-200">수정</button>
-                <button onclick="deleteCompany('${name}')" class="bg-slate-100 px-2 py-1.5 text-xs text-red-500 hover:bg-red-50 border-l border-slate-200">삭제</button>
-            </div>
-        `).join('');
+    function renderAllDropdowns() {
+        renderManagementUI('companyManageList', companyList, 'Company');
+        renderManagementUI('designManageList', designList, 'Design');
+        renderManagementUI('coatingManageList', coatingList, 'Coating');
 
-        // 모든 업체 선택 셀렉트박스(Dropdown) 업데이트
-        const selectors = ['selCompany', 'stockCompany', 'companyFilter'];
-        selectors.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                const currentVal = el.value;
-                let options = companyList.map(c => `<option value="${c}">${c}</option>`).join('');
-                if (id === 'companyFilter') options = `<option value="">전체 업체</option>` + options;
-                el.innerHTML = options;
-                if (companyList.includes(currentVal)) el.value = currentVal;
+        updateOptions('selCompany', companyList);
+        updateOptions('stockCompany', companyList);
+        updateOptions('companyFilter', companyList, true);
+
+        updateOptions('selDesign', designList);
+        updateOptions('stockDesign', designList);
+
+        updateOptions('selType', coatingList); 
+        updateOptions('stockType', coatingList);
+
+        updateOptions('selIndex', indexList);   
+        updateOptions('stockIndex', indexList);
+
+        // [추가] 재고조사 탭에서 업체가 선택되지 않았다면 자동으로 첫 번째 업체 선택
+        const stockCo = document.getElementById('stockCompany');
+        if (stockCo && stockCo.value === "" && companyList.length > 0) {
+            // 첫 번째 업체(0번은 placeholder이므로 1번부터 확인)
+            for(let i=0; i<stockCo.options.length; i++) {
+                if(stockCo.options[i].value !== "") {
+                    stockCo.selectedIndex = i;
+                    break;
+                }
             }
-        });
+            renderStockGrid(); // 선택 후 즉시 표 그리기
+        }
     }
 
+    // [도우미 함수 1] 드롭다운 옵션을 실제로 갈아끼우는 기능
+    function updateOptions(id, list, hasAll = false) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        
+        const currentVal = el.value;
+        let defaultText = "선택하세요";
+        if (id === 'selCompany') defaultText = "업체 선택";
+        if (id === 'selIndex') defaultText = "굴절률 선택";
+        if (id === 'selDesign') defaultText = "설계 선택";
+        if (id === 'selType') defaultText = "코팅 선택";
+
+        // 첫 줄에 안내 문구 삽입
+        let html = `<option value="" disabled ${!currentVal ? 'selected' : ''}>${defaultText}</option>`;
+        
+        // 기록 탭 필터용 "전체" 옵션
+        if (hasAll) html = '<option value="">전체 업체</option>';
+
+        // 실제 목록 채우기
+        html += list.map(item => `<option value="${item}">${item}</option>`).join('');
+        el.innerHTML = html;
+
+        // 기존에 값이 선택되어 있었다면 유지
+        if (currentVal && list.includes(currentVal)) el.value = currentVal;
+    }
+
+    // [도우미 함수 2] 관리 화면 리스트를 그리는 기능
+    function renderManagementUI(containerId, list, type) {
+        const area = document.getElementById(containerId);
+        if (!area) return;
+        area.innerHTML = list.map(name => `
+            <div class="flex items-center bg-white border border-slate-300 rounded-lg overflow-hidden shadow-sm hover:border-red-300 transition-colors">
+                <span class="px-3 py-1 font-bold text-xs text-slate-600">${name}</span>
+                <button onclick="deleteItem('${type}', '${name}')" class="bg-slate-50 px-2 py-1 text-[10px] text-slate-400 hover:text-red-500 hover:bg-red-50 border-l border-slate-200">✕</button>
+            </div>
+        `).join('');
+    }
 
     // 3. 업체 추가 기능 (saveCompanyData를 사용하게 수정)
     function addCompany() {
@@ -1332,6 +1586,40 @@
 
         companyList = companyList.filter(c => c !== name);
         saveCompanyData();
+    }
+
+    // 1. 항목 추가 함수 (업체, 설계, 코팅 공통)
+function addItem(type) {
+    const input = document.getElementById(`new${type}Name`);
+    const val = input.value.trim();
+    if (!val) return;
+
+    let list = (type === 'Company') ? companyList : (type === 'Design' ? designList : coatingList);
+    if (list.includes(val)) return alert("이미 등록된 항목입니다.");
+
+    list.push(val);
+    
+    // Firebase 경로 설정 (companies, designs, coatings)
+    const path = type.toLowerCase() + 's';
+    db.ref('lens_mgmt/' + path).set(list).then(() => {
+        input.value = ''; // 성공 시 입력창 비우기
+    });
+}
+
+    // 2. 항목 삭제 함수 (업체, 설계, 코팅 공통)
+    function deleteItem(type, val) {
+        if (!confirm(`'${val}' 항목을 삭제할까요?`)) return;
+
+        if (type === 'Company') {
+            companyList = companyList.filter(c => c !== val);
+            db.ref('lens_mgmt/companies').set(companyList);
+        } else if (type === 'Design') {
+            designList = designList.filter(d => d !== val);
+            db.ref('lens_mgmt/designs').set(designList);
+        } else if (type === 'Coating') {
+            coatingList = coatingList.filter(c => c !== val);
+            db.ref('lens_mgmt/coatings').set(coatingList);
+        }
     }
 
     // 2. 업체 데이터 저장 공통 함수
@@ -1516,19 +1804,122 @@
         return text.trim();
     }
 
-    function undoStockScan() {
-    if (stockUndoStack.length === 0) return alert("되돌릴 기록이 없습니다.");
-    
-    // 바구니에서 가장 최근 기록 꺼내기
-    stockData = stockUndoStack.pop();
-    
-    // 화면 갱신
-    renderStockGrid();
-    
-    // 로컬스토리지 임시저장도 함께 갱신
-    localStorage.setItem('tempStockV6', JSON.stringify(stockData));
+    function resetRuleForm() {
+        editingRuleId = null; // 수정 모드 해제
+        document.getElementById('saveRuleBtn').innerText = "이 설정을 새 규칙으로 저장";
+        
+        // 바코드 입력창 및 추출 결과 비우기
+        document.getElementById('testBarcode').value = "";
+        document.getElementById('rawItem').innerText = "추출: -";
+        document.getElementById('rawSph').innerText = "추출: -";
+        document.getElementById('rawCyl').innerText = "추출: -";
+        document.getElementById('previewResult').innerText = "S -0.00 C -0.00";
+        
+        // [핵심] 모든 선택박스를 "선택하세요(0번 인덱스)" 상태로 되돌림
+        document.getElementById('selCompany').selectedIndex = 0;
+        document.getElementById('selIndex').selectedIndex = 0;
+        document.getElementById('selDesign').selectedIndex = 0;
+        document.getElementById('selType').selectedIndex = 0;
+        
+        // 도수 부호도 기본값(-)으로 초기화
+        document.querySelector('input[name="lens_sign"][value="-"]').checked = true;
     }
 
+    // 1. 재고조사 되돌리기 함수 (독립적으로 분리)
+    function undoStockScan() {
+        if (stockUndoStack.length === 0) return alert("되돌릴 기록이 없습니다.");
+        stockData = stockUndoStack.pop();
+        renderStockGrid();
+        localStorage.setItem('tempStockV6', JSON.stringify(stockData));
+    } // <--- 이 중괄호가 반드시 'addItem'이나 'download' 함수보다 먼저 닫혀있어야 합니다!
+
+    // 2. 엑셀 다운로드 함수 (독립적으로 분리)
+    function downloadStockExcel() {
+        if (Object.keys(stockData).length === 0) return alert("저장된 재고 데이터가 없습니다.");
+
+        const wb = XLSX.utils.book_new(); 
+
+        // 1. 데이터가 존재하는 모든 카테고리 추출
+        const categories = {};
+        Object.keys(stockData).forEach(key => {
+            const parts = key.split('_');
+            if (parts.length < 6) return;
+            
+            const [co, idx, ds, ty] = parts;
+            const catKey = `${co}_${idx}_${ds}_${ty}`;
+            if (!categories[catKey]) categories[catKey] = [];
+            categories[catKey].push(key);
+        });
+
+        // 2. 카테고리 정렬 (핵심 로직!)
+        const sortedCatKeys = Object.keys(categories).sort((a, b) => {
+            const partsA = a.split('_');
+            const partsB = b.split('_');
+            
+            // 1순위: 업체명 가나다순
+            if (partsA[0] !== partsB[0]) {
+                return partsA[0].localeCompare(partsB[0]);
+            }
+            // 2순위: 굴절률 숫자 낮은 순
+            return parseFloat(partsA[1]) - parseFloat(partsB[1]);
+        });
+
+        if (sortedCatKeys.length === 0) return alert("다운로드할 유효한 데이터가 없습니다.");
+
+        // 3. 정렬된 순서대로 시트 생성
+        sortedCatKeys.forEach(catKey => {
+            const [co, idx, ds, ty] = catKey.split('_');
+            const excelData = [];
+            
+            // 상단 제목부
+            excelData.push([`아이젠트리 재고조사표 - ${co}`]);
+            excelData.push([`품목: ${idx} ${ds} ${ty}`]);
+            excelData.push([]); 
+
+            // 도수 범위 결정
+            let isPlus = categories[catKey].some(k => parseFloat(k.split('_')[4]) > 0);
+            let sRange = [], cRange = [];
+
+            if (!isPlus) { 
+                for (let s = 0; s >= -8.00; s -= 0.25) sRange.push(s.toFixed(2));
+                for (let c = 0; c >= -3.00; c -= 0.25) cRange.push(c.toFixed(2));
+            } else { 
+                for (let s = 0; s <= 4.00; s += 0.25) sRange.push(s.toFixed(2));
+                for (let c = 0; c <= 2.00; c += 0.25) cRange.push(c.toFixed(2));
+            }
+
+            // 헤더 생성
+            const headerRow = ["S \\ C"];
+            cRange.forEach(c => headerRow.push(parseFloat(c) > 0 ? '+' + c : c));
+            excelData.push(headerRow);
+
+            // 데이터 생성
+            sRange.forEach(s => {
+                const displayS = parseFloat(s) > 0 ? '+' + s : s;
+                const row = [displayS];
+                cRange.forEach(c => {
+                    const dataKey = `${catKey}_${s}_${c}`;
+                    const count = stockData[dataKey] || ""; 
+                    row.push(count);
+                });
+                excelData.push(row);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+            // 열 너비 조정
+            ws['!cols'] = [{ wch: 10 }]; 
+            for (let i = 1; i <= cRange.length; i++) { ws['!cols'].push({ wch: 6 }); }
+
+            // 시트 이름 (31자 제한 및 중복 방지)
+            const safeSheetName = `${co}_${idx}_${ty}`.substring(0, 31);
+            XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
+        });
+
+        const d = new Date();
+        const dateStr = `${String(d.getMonth()+1).padStart(2,'0')}월${String(d.getDate()).padStart(2,'0')}일`;
+        XLSX.writeFile(wb, `아이젠트리_통합재고조사_${dateStr}.xlsx`);
+    }
     // 초기 실행
     renderRules();
     // [수정 2] 페이지가 열리면 바로 바코드 찍을 준비 하기
