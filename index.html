@@ -1681,7 +1681,7 @@ function addItem(type) {
             if (!acc[obj.company][obj.index][obj.info]) acc[obj.company][obj.index][obj.info] = {};
             
             let groupSign = obj.signType;
-            if (groupSign === '-' && parseFloat(obj.cyl) <= -2.00) {
+            if (groupSign === '-' && parseFloat(obj.cyl) <= -2.25) {
                 groupSign = '-highCyl';
             }
 
@@ -1782,7 +1782,7 @@ function addItem(type) {
             if (!acc[obj.company][obj.index][obj.info]) acc[obj.company][obj.index][obj.info] = {};
             
             let groupSign = obj.signType;
-            if (groupSign === '-' && parseFloat(obj.cyl) <= -2.00) {
+            if (groupSign === '-' && parseFloat(obj.cyl) <= -2.25) {
                 groupSign = '-highCyl';
             }
 
