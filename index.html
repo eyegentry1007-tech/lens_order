@@ -83,7 +83,15 @@
         <div class="max-w-[1600px] mx-auto">
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
                 <div class="lg:col-span-4 bg-white p-6 rounded-[30px] shadow-xl border border-slate-100 flex flex-col">
-                    <h3 class="text-base font-black text-slate-800 mb-4">📅 주문 기록 달력</h3>
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
+                            📅 <span id="calendarMonthLabel">주문 기록 달력</span>
+                        </h3>
+                        <div class="flex gap-2">
+                            <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full font-black text-slate-600 transition-colors">&lt;</button>
+                            <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full font-black text-slate-600 transition-colors">&gt;</button>
+                        </div>
+                    </div>
                     <div id="visualCalendar" class="grid grid-cols-7 gap-2 text-center text-sm font-bold flex-1"></div>
                 </div>
 
@@ -410,6 +418,9 @@
     let currentFilterCompany = "";
     let editingRuleId = null;
     let scanCounter = 0;
+    let currentCalendarDate = new Date();
+    let historyDatesWithOrders = [];
+    let currentHistoryRecord = null;
     
 
     // [3번 상세] 실시간 데이터 동기화
@@ -590,24 +601,31 @@
         const cal = document.getElementById('visualCalendar');
         if(!cal) return;
 
-        // 달력 표시용 로컬 기록 (confirmOrder 시 저장됨)
-        const localHistory = JSON.parse(localStorage.getItem('eyeHistoryV4')) || [];
-        
+        db.ref('lens_mgmt/history').once('value').then(snap => {
+            historyDatesWithOrders = snap.exists() ? Object.keys(snap.val()) : [];
+            drawCalendarUI();
+        });
+    }
+
+    function drawCalendarUI() {
+        const cal = document.getElementById('visualCalendar');
+        if(!cal) return;
+
         const headers = ['일', '월', '화', '수', '목', '금', '토'];
         let calHtml = headers.map(h => `<div class="text-slate-400 font-bold text-xs mb-4">${h}</div>`).join('');
 
-        const now = new Date();
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
-        const lastDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const year = currentCalendarDate.getFullYear();
+        const month = currentCalendarDate.getMonth();
+        const firstDay = new Date(year, month, 1).getDay();
+        const lastDate = new Date(year, month + 1, 0).getDate();
 
         for(let i=0; i<firstDay; i++) calHtml += `<div></div>`;
 
         for(let d=1; d<=lastDate; d++) {
-            // 파이어베이스와 동일한 "2026-04-27" 형식 생성
-            const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
             
-            // 해당 날짜에 기록이 있는지 확인 (파란 점 표시용)
-            const hasOrder = localHistory.some(h => h.date === dateStr);
+            // 파이어베이스에서 가져온 날짜 목록과 비교
+            const hasOrder = historyDatesWithOrders.includes(dateStr);
             
             calHtml += `
                 <div onclick="document.getElementById('inspectDateSelect').value='${dateStr}'; loadHistoryByDate('${dateStr}')"
@@ -618,6 +636,14 @@
                 </div>`;
         }
         cal.innerHTML = calHtml;
+
+        const monthLabel = document.getElementById('calendarMonthLabel');
+        if(monthLabel) monthLabel.innerText = `${year}년 ${month + 1}월`;
+    }
+
+    function changeMonth(diff) {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + diff);
+        drawCalendarUI();
     }
 
     function loadHistoryByDate(dateStr) {
@@ -709,6 +735,7 @@
     }
 
     function renderInspectionUI(record) {
+        currentHistoryRecord = record; // 조회 중인 기록 저장
         const summaryArea = document.getElementById('historySummaryArea');
         const copyBtnArea = document.getElementById('historyCopyBtnArea');
         const resultArea = document.getElementById('inspectionResultArea');
@@ -721,7 +748,7 @@
 
         // 1. 상단 요약 및 복사 버튼 복구
         summaryArea.innerHTML = generateGroupedSummary(record.items || []);
-        copyBtnArea.innerHTML = `<button onclick="copyHistoryToClipboard(${record.id})" class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-lg font-black transition-all shadow-md">복사</button>`;
+        copyBtnArea.innerHTML = `<button onclick="copyHistoryToClipboard()" class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-lg font-black transition-all shadow-md">복사</button>`;
 
         // 2. 업체 필터링 적용
         const filteredItems = currentFilterCompany 
@@ -796,15 +823,19 @@
     }
 
     // 기록 데이터 수량 변경
-    function updateHistoryQty(date, code, newQty) {
-        let history = JSON.parse(localStorage.getItem('eyeHistoryV4')) || [];
-        const record = history.find(h => h.date === date);
-        if(record) {
-            const item = record.items.find(i => i.code === code);
-            if(item) item.qty = Math.max(1, parseInt(newQty) || 1);
-            localStorage.setItem('eyeHistoryV4', JSON.stringify(history));
-            renderInspectionUI(record); // UI 즉시 갱신
-        }
+    function updateHistoryQty(dateId, code, newQty) {
+        const formattedId = standardizeDate(dateId);
+        const recordRef = db.ref('lens_mgmt/history/' + formattedId);
+        recordRef.once('value').then(snap => {
+            if(snap.exists()) {
+                let record = snap.val();
+                if(record.items) {
+                    const item = record.items.find(i => i.code === code);
+                    if(item) item.qty = Math.max(1, parseInt(newQty) || 1);
+                    recordRef.set(record).then(() => renderInspectionUI(record));
+                }
+            }
+        });
     }
 
     // 기록 데이터 개별 렌즈 삭제
@@ -1094,13 +1125,6 @@
                 items: items,
                 unregisteredItems: unregisteredItems
             }).then(function() {
-                // 달력에 파란 점 표시를 위해 로컬 스토리지 업데이트
-                let localHistory = JSON.parse(localStorage.getItem('eyeHistoryV4')) || [];
-                if(!localHistory.some(h => h.date === todayStr)) {
-                    localHistory.push({ date: todayStr, id: Date.now() });
-                    localStorage.setItem('eyeHistoryV4', JSON.stringify(localHistory));
-                }
-
                 // 5. 완료 후 화면 초기화
                 currentOrders = [];
                 scanCounter = 0;
@@ -1211,25 +1235,27 @@
     function undoScan() {
         if (undoStack.length === 0) return alert("되돌릴 기록이 없습니다.");
         
-        const previousState = undoStack.pop(); // 가장 최근 저장된 상태를 꺼냅니다.
-        localStorage.setItem('eyeHistoryV4', JSON.stringify(previousState));
-        
-        const record = previousState.find(h => h.id === activeRecordId);
-        renderInspectionUI(record);
+        const previousRecord = undoStack.pop();
+        if (!previousRecord || !activeRecordId) return;
+
+        db.ref('lens_mgmt/history/' + activeRecordId).set(previousRecord).then(() => {
+            renderInspectionUI(previousRecord);
+        });
     }
 
-    function confirmUnregisteredItem(historyId, itemIndex) {
-        let history = JSON.parse(localStorage.getItem('eyeHistoryV4')) || [];
-        const record = history.find(h => h.id === historyId);
+    function confirmUnregisteredItem(dateId, itemIndex) {
+        const formattedId = standardizeDate(dateId);
+        const recordRef = db.ref('lens_mgmt/history/' + formattedId);
         
-        if (record && record.unregisteredItems) {
-            // 해당 순서의 바코드를 목록에서 제거
-            record.unregisteredItems.splice(itemIndex, 1);
-            
-            // 데이터 저장 및 화면 갱신
-            localStorage.setItem('eyeHistoryV4', JSON.stringify(history));
-            renderInspectionUI(record);
-        }
+        recordRef.once('value').then(snap => {
+            if (snap.exists()) {
+                let record = snap.val();
+                if (record.unregisteredItems) {
+                    record.unregisteredItems.splice(itemIndex, 1);
+                    recordRef.set(record).then(() => renderInspectionUI(record));
+                }
+            }
+        });
     }
 
     // 1. 도수 방식 변경 (근시/원시)
@@ -1748,15 +1774,16 @@ function addItem(type) {
         return html;
     }
 
+    function copyHistoryToClipboard() {
+        if (!currentHistoryRecord || !currentHistoryRecord.items || currentHistoryRecord.items.length === 0) {
+            return alert("복사할 데이터가 없습니다.");
+        }
 
-    function copyHistoryToClipboard(recordId) {
-        const history = JSON.parse(localStorage.getItem('eyeHistoryV4')) || [];
-        const record = history.find(h => h.id === recordId);
-        if (!record) return alert("데이터가 없습니다.");
-
-        const finalText = formatOrdersToText(record.items, "기록조회");
+        const finalText = formatOrdersToText(currentHistoryRecord.items, "기록조회");
         navigator.clipboard.writeText(finalText).then(() => {
             alert("카톡용 텍스트가 복사되었습니다!");
+        }).catch(err => {
+            alert("복사에 실패했습니다. 권한을 확인해주세요.");
         });
     }
 
